@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Game Puzzle Seni Terpadu - Seni Lukis Kelas 4 SD</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts: Fredoka & Nunito -->
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@700;800;900&display=swap" rel="stylesheet">
+    <!-- Canvas Confetti CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        fredoka: ['Fredoka', 'sans-serif'],
+                        nunito: ['Nunito', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body {
+            font-family: 'Nunito', sans-serif;
+            background: radial-gradient(circle at 10% 20%, rgba(255, 224, 178, 0.8) 0%, rgba(255, 205, 210, 0.8) 45.5%, rgba(225, 190, 231, 0.8) 90%),
+                        url('https://images.unsplash.com/photo-1579783900882-c0d3dad7b119?auto=format&fit=crop&w=1600&q=80') center/cover no-repeat fixed;
+            min-height: 100vh;
+            user-select: none;
+        }
+
+        /* Canvas Frame 3D Art Effect */
+        .easel-frame {
+            background: #8D6E63;
+            border: 12px solid #5D4037;
+            border-radius: 20px;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.3), inset 0 0 15px rgba(0,0,0,0.4);
+            position: relative;
+        }
+
+        /* Puzzle Piece Tile */
+        .puzzle-piece {
+            transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+            border: 2px solid rgba(255, 255, 255, 0.9);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.25);
+            cursor: grab;
+            border-radius: 12px;
+            touch-action: none;
+        }
+
+        .puzzle-piece:active {
+            cursor: grabbing;
+            transform: scale(1.03);
+            z-index: 20;
+        }
+
+        .puzzle-piece.selected {
+            outline: 4px solid #FFD54F;
+            transform: scale(1.04);
+            box-shadow: 0 8px 20px rgba(255, 213, 79, 0.6);
+            z-index: 30;
+        }
+
+        /* Custom Scrollbar */
+        .custom-scroll::-webkit-scrollbar {
+            height: 8px;
+            width: 8px;
+        }
+        .custom-scroll::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.4);
+            border-radius: 10px;
+        }
+        .custom-scroll::-webkit-scrollbar-thumb {
+            background: #EC4899;
+            border-radius: 10px;
+        }
+    </style>
+</head>
+<body class="text-slate-800 pb-12 min-h-screen flex flex-col justify-between">
+
+    <!-- Header Section -->
+    <header class="max-w-6xl mx-auto w-full px-4 pt-4 z-20">
+        <div class="bg-white/85 backdrop-blur-md rounded-3xl p-3 md:p-4 shadow-xl border-3 border-white/70 flex flex-wrap justify-between items-center gap-3">
+            
+            <!-- Title with Art Palette Icon -->
+            <div class="flex items-center gap-3">
+                <div class="w-12 h-12 bg-gradient-to-tr from-pink-500 via-purple-500 to-indigo-500 rounded-2xl flex items-center justify-center text-white text-2xl font-black shadow-lg transform -rotate-3 border-2 border-white">
+                    🎨
+                </div>
+                <div>
+                    <h1 class="font-fredoka text-xl md:text-2xl text-purple-900 leading-none">
+                        Puzzle Galeri <span class="text-pink-600">Seni Lukis</span>
+                    </h1>
+                    <p class="text-xs md:text-sm font-extrabold text-amber-700 mt-1">Seni Terpadu Kelas 4 SD • Mengenal Karya & Teknik Lukis</p>
+                </div>
+            </div>
+
+            <!-- Stats Bar -->
+            <div class="flex items-center gap-2 md:gap-3 bg-purple-900/10 p-1.5 rounded-2xl border border-purple-200/50">
+                <div class="bg-white px-3 py-1.5 rounded-xl shadow-sm flex items-center gap-2 text-indigo-600 font-black text-xs md:text-sm">
+                    <i class="fa-solid fa-arrows-spin text-indigo-500"></i>
+                    <span>Langkah: <span id="moves-val" class="font-fredoka text-base">0</span></span>
+                </div>
+                <div class="bg-white px-3 py-1.5 rounded-xl shadow-sm flex items-center gap-2 text-pink-600 font-black text-xs md:text-sm">
+                    <i class="fa-solid fa-stopwatch text-pink-500"></i>
+                    <span id="timer-val" class="font-fredoka text-base">00:00</span>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Game Area -->
+    <main class="max-w-6xl mx-auto w-full px-4 my-4 z-20 grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+
+        <!-- Controls & Painting Selector Panel (Left Sidebar) -->
+        <section class="lg:col-span-4 space-y-4">
+            
+            <!-- Image Selector -->
+            <div class="bg-white/85 backdrop-blur-md p-4 rounded-3xl shadow-xl border-3 border-white/80">
+                <h2 class="font-fredoka text-base text-purple-900 mb-3 flex items-center gap-2">
+                    <i class="fa-solid fa-palette text-pink-500"></i> Pilih Karya Seni Lukis:
+                </h2>
+                
+                <div class="grid grid-cols-3 gap-2 mb-3">
+                    <button onclick="selectPainting(0)" id="art-btn-0" class="art-thumb-btn border-4 border-pink-500 rounded-2xl overflow-hidden shadow-md transition transform active:scale-95 focus:outline-none">
+                        <img src="https://images.unsplash.com/photo-1579783900882-c0d3dad7b119?auto=format&fit=crop&w=400&q=80" alt="Ekspresi Warna" class="w-full h-16 object-cover">
+                    </button>
+                    <button onclick="selectPainting(1)" id="art-btn-1" class="art-thumb-btn border-2 border-transparent rounded-2xl overflow-hidden shadow-md transition transform active:scale-95 focus:outline-none">
+                        <img src="https://images.unsplash.com/photo-1579783902614-a3fb3927b675?auto=format&fit=crop&w=400&q=80" alt="Alam Flora Fauna" class="w-full h-16 object-cover">
+                    </button>
+                    <button onclick="selectPainting(2)" id="art-btn-2" class="art-thumb-btn border-2 border-transparent rounded-2xl overflow-hidden shadow-md transition transform active:scale-95 focus:outline-none">
+                        <img src="https://images.unsplash.com/photo-1541701494587-cb58502866ab?auto=format&fit=crop&w=400&q=80" alt="Lukisan Pop Art Abstrak" class="w-full h-16 object-cover">
+                    </button>
+                </div>
+
+                <!-- Custom Upload Button -->
+                <label class="w-full bg-gradient-to-r from-purple-500 to-indigo-600 hover:from-purple-600 hover:to-indigo-700 text-white font-fredoka py-2 px-3 rounded-2xl shadow-md border-b-4 border-indigo-900 transition flex items-center justify-center gap-2 text-xs md:text-sm cursor-pointer active:scale-95">
+                    <i class="fa-solid fa-upload"></i> Unggah Lukisan/Foto Sendiri
+                    <input type="file" id="image-upload" accept="image/*" class="hidden" onchange="handleImageUpload(event)">
+                </label>
+            </div>
+
+            <!-- Game Options & Helper Tools -->
+            <div class="bg-white/85 backdrop-blur-md p-4 rounded-3xl shadow-xl border-3 border-white/80 space-y-3">
+                <h2 class="font-fredoka text-base text-purple-900 flex items-center gap-2">
+                    <i class="fa-solid fa-sliders text-indigo-500"></i> Pengaturan Game:
+                </h2>
+
+                <!-- Difficulty Grid Level -->
+                <div class="flex items-center justify-between bg-purple-50 p-2 rounded-2xl border border-purple-200">
+                    <span class="font-extrabold text-xs text-purple-900">Tingkat Kesulitan:</span>
+                    <div class="flex gap-1">
+                        <button onclick="setGridSize(3)" id="grid-3-btn" class="px-3 py-1 font-fredoka text-xs rounded-xl bg-pink-500 text-white font-bold shadow">3x3 (Mudah)</button>
+                        <button onclick="setGridSize(4)" id="grid-4-btn" class="px-3 py-1 font-fredoka text-xs rounded-xl bg-slate-200 text-slate-700 font-bold">4x4 (Sedang)</button>
+                    </div>
+                </div>
+
+                <!-- Helper Toggles -->
+                <div class="grid grid-cols-2 gap-2">
+                    <button onclick="toggleNumbers()" id="toggle-num-btn" class="bg-amber-100 border-2 border-amber-300 text-amber-800 font-extrabold text-xs py-2 px-2 rounded-xl flex items-center justify-center gap-1.5 transition active:scale-95">
+                        <i class="fa-solid fa-hashtag"></i> Nomor: ON
+                    </button>
+                    <button onclick="togglePreviewModal()" class="bg-sky-100 border-2 border-sky-300 text-sky-800 font-extrabold text-xs py-2 px-2 rounded-xl flex items-center justify-center gap-1.5 transition active:scale-95">
+                        <i class="fa-solid fa-image"></i> Acuan Lukisan
+                    </button>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="flex gap-2 pt-1">
+                    <button onclick="shufflePuzzle()" class="flex-1 py-2.5 bg-gradient-to-b from-amber-400 to-amber-600 hover:from-amber-500 hover:to-amber-700 text-white font-fredoka text-sm rounded-2xl shadow-md border-b-4 border-amber-800 transition transform active:scale-95 flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-shuffle"></i> Acak Ulang
+                    </button>
+                    <button onclick="autoSolveHint()" class="py-2.5 px-4 bg-gradient-to-b from-emerald-400 to-emerald-600 hover:from-emerald-500 hover:to-emerald-700 text-white font-fredoka text-sm rounded-2xl shadow-md border-b-4 border-emerald-800 transition transform active:scale-95 flex items-center justify-center gap-2" title="Bantuan Otomatis">
+                        <i class="fa-solid fa-wand-magic-sparkles"></i> Hint
+                    </button>
+                </div>
+            </div>
+
+        </section>
+
+        <!-- Canvas & Puzzle Playground Area (Right Main Area) -->
+        <section class="lg:col-span-8 flex flex-col items-center">
+            
+            <!-- Easel Canvas Frame Wrapper -->
+            <div class="easel-frame p-3 md:p-5 w-full max-w-[500px]">
+                
+                <!-- Wooden Canvas Header Badge -->
+                <div class="bg-amber-100 text-amber-900 font-fredoka text-xs md:text-sm px-3 py-1 rounded-full text-center mb-3 shadow-inner border border-amber-300 flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-hand-pointer text-pink-500"></i> Klik 2 Kepingan untuk Menggeser Posisi
+                </div>
+
+                <!-- Puzzle Board Grid -->
+                <div id="puzzle-board" class="w-full aspect-square bg-slate-900/40 rounded-xl relative overflow-hidden grid gap-1 p-1">
+                    <!-- Dynamic Puzzle Tiles Generated by JS -->
+                </div>
+            </div>
+
+        </section>
+
+    </main>
+
+    <!-- Art Info Victory Modal -->
+    <div id="art-info-modal" class="fixed inset-0 bg-black/65 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-3xl p-6 max-w-lg w-full text-center border-8 border-amber-300 shadow-2xl transform transition-all relative overflow-hidden">
+            
+            <div class="text-5xl mb-2 animate-bounce">🖼️🎉</div>
+            <h2 class="font-fredoka text-2xl text-purple-900 mb-1">LUAR BIASA! PUZZLE SELESAI!</h2>
+            <p class="text-slate-600 text-xs md:text-sm mb-4 font-extrabold">Kamu berhasil menyusun lukisan ini dengan rapi!</p>
+
+            <!-- Edu Art Info Card -->
+            <div class="bg-gradient-to-br from-amber-50 to-orange-50 rounded-2xl p-4 text-left border-2 border-amber-200 mb-5 space-y-2">
+                <div class="flex items-center gap-2 text-amber-800 font-fredoka text-base border-b border-amber-200 pb-1">
+                    <i class="fa-solid fa-lightbulb text-yellow-500 text-lg"></i>
+                    <span id="info-title">Info Seni Lukis</span>
+                </div>
+                <p id="info-description" class="text-xs md:text-sm text-slate-700 leading-relaxed font-semibold">
+                    Penjelasan materi seni lukis...
+                </p>
+            </div>
+
+            <!-- Stats Summary -->
+            <div class="grid grid-cols-2 gap-3 mb-5">
+                <div class="bg-purple-50 p-2.5 rounded-xl border border-purple-200 text-purple-900">
+                    <span class="text-xs font-extrabold block">Total Langkah:</span>
+                    <span id="final-moves" class="font-fredoka text-lg text-purple-700">0</span>
+                </div>
+                <div class="bg-pink-50 p-2.5 rounded-xl border border-pink-200 text-pink-900">
+                    <span class="text-xs font-extrabold block">Waktu Tempuh:</span>
+                    <span id="final-time" class="font-fredoka text-lg text-pink-700">00:00</span>
+                </div>
+            </div>
+
+            <button onclick="closeArtInfoModal(); shufflePuzzle();" class="w-full py-3 bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white font-fredoka text-base rounded-2xl shadow-lg border-b-4 border-purple-900 transition active:scale-95">
+                Main Lagi / Coba Lukisan Lain 🎨
+            </button>
+        </div>
+    </div>
+
+    <!-- Preview Painting Reference Modal -->
+    <div id="preview-modal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden" onclick="togglePreviewModal()">
+        <div class="bg-white rounded-3xl p-4 max-w-sm w-full text-center border-4 border-white shadow-2xl" onclick="event.stopPropagation()">
+            <h3 class="font-fredoka text-purple-900 text-lg mb-2">Acuan Gambar Lukisan 🎨</h3>
+            <div class="rounded-2xl overflow-hidden border-2 border-slate-200 shadow-md mb-3">
+                <img id="preview-img-full" src="" alt="Acuan Lukisan" class="w-full aspect-square object-cover">
+            </div>
+            <button onclick="togglePreviewModal()" class="w-full py-2 bg-slate-200 hover:bg-slate-300 text-slate-800 font-fredoka text-sm rounded-xl">
+                Tutup Acuan
+            </button>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast-msg" class="fixed bottom-5 right-5 bg-purple-950 text-white px-4 py-3 rounded-2xl shadow-2xl z-50 text-xs md:text-sm font-extrabold opacity-0 pointer-events-none transition-opacity duration-300 flex items-center gap-2 border border-purple-400">
+        <span id="toast-icon">ℹ️</span>
+        <span id="toast-text">Pesan informasi</span>
+    </div>
+
+    <!-- Audio FX Synthesizer -->
+    <script>
+        const playSound = (type) => {
+            try {
+                const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+
+                if (type === 'click') {
+                    osc.frequency.setValueAtTime(350, ctx.currentTime);
+                    gain.gain.setValueAtTime(0.08, ctx.currentTime);
+                    osc.start();
+                    osc.stop(ctx.currentTime + 0.05);
+                } else if (type === 'swap') {
+                    osc.frequency.setValueAtTime(500, ctx.currentTime);
+                    osc.frequency.exponentialRampToValueAtTime(700, ctx.currentTime + 0.08);
+                    gain.gain.setValueAtTime(0.1, ctx.currentTime);
+                    osc.start();
+                    osc.stop(ctx.currentTime + 0.08);
+                } else if (type === 'win') {
+                    osc.frequency.setValueAtTime(523.25, ctx.currentTime); // C5
+                    osc.frequency.setValueAtTime(659.25, ctx.currentTime + 0.1); // E5
+                    osc.frequency.setValueAtTime(783.99, ctx.currentTime + 0.2); // G5
+                    osc.frequency.setValueAtTime(1046.50, ctx.currentTime + 0.3); // C6
+                    gain.gain.setValueAtTime(0.2, ctx.currentTime);
+                    osc.start();
+                    osc.stop(ctx.currentTime + 0.5);
+                }
+            } catch(e) {}
+        };
+    </script>
+
+    <!-- Game Logic Engine -->
+    <script>
+        // Educational Art Datasets
+        const PRESET_PAINTINGS = [
+            {
+                url: "https://images.unsplash.com/photo-1579783900882-c0d3dad7b119?auto=format&fit=crop&w=600&q=80",
+                title: "Seni Lukis Ekspresi & Warna",
+                info: "Seni lukis ekspresionisme mengutamakan ungkapan perasaan penciptanya! Pilihan warna cerah dan goresan kuas yang bebas digunakan untuk menyampaikan emosi gembira dan semangat."
+            },
+            {
+                url: "https://images.unsplash.com/photo-1579783902614-a3fb3927b675?auto=format&fit=crop&w=600&q=80",
+                title: "Lukisan Tema Alam Flora & Fauna",
+                info: "Lukisan bertema alam menggambarkan keindahan tumbuh-tumbuhan dan hewan. Pelukis menggunakan perpaduan warna alami seperti hijau, cokelat, dan warna bunga untuk menghidupkan suasana."
+            },
+            {
+                url: "https://images.unsplash.com/photo-1541701494587-cb58502866ab?auto=format&fit=crop&w=600&q=80",
+                title: "Gaya Lukis Pop Art & Bentuk Geometris",
+                info: "Gaya Pop Art menggunakan kontras warna-warni yang tegas dan bentuk-bentuk unik. Teknik ini sering memanfaatkan perpaduan warna primer (Merah, Kuning, Biru) dan sekunder!"
+            }
+        ];
+
+        let currentPainting = PRESET_PAINTINGS[0];
+        let gridSize = 3; // Default 3x3
+        let pieces = []; // Array of current piece order
+        let selectedIndex = null;
+        let moves = 0;
+        let timerInterval = null;
+        let secondsElapsed = 0;
+        let showNumbers = true;
+
+        window.onload = function() {
+            initPuzzle();
+        };
+
+        function selectPainting(index) {
+            playSound('click');
+            currentPainting = PRESET_PAINTINGS[index];
+            
+            document.querySelectorAll('.art-thumb-btn').forEach((btn, idx) => {
+                if (idx === index) {
+                    btn.classList.add('border-4', 'border-pink-500');
+                    btn.classList.remove('border-2', 'border-transparent');
+                } else {
+                    btn.classList.remove('border-4', 'border-pink-500');
+                    btn.classList.add('border-2', 'border-transparent');
+                }
+            });
+
+            document.getElementById('preview-img-full').src = currentPainting.url;
+            initPuzzle();
+        }
+
+        function handleImageUpload(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(evt) {
+                    currentPainting = {
+                        url: evt.target.result,
+                        title: "Lukisan Karya Siswa (Custom)",
+                        info: "Hebat! Kamu menyusun karya lukisan pilihanmu sendiri. Setiap karya seni memiliki keunikan goresan dan warna tersendiri!"
+                    };
+                    document.getElementById('preview-img-full').src = currentPainting.url;
+                    
+                    // Clear selector border
+                    document.querySelectorAll('.art-thumb-btn').forEach(btn => {
+                        btn.classList.remove('border-4', 'border-pink-500');
+                        btn.classList.add('border-2', 'border-transparent');
+                    });
+
+                    initPuzzle();
+                    showToast('Lukisan berhasil diunggah!', '🎨');
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        function setGridSize(size) {
+            playSound('click');
+            gridSize = size;
+            
+            const g3 = document.getElementById('grid-3-btn');
+            const g4 = document.getElementById('grid-4-btn');
+
+            if (size === 3) {
+                g3.className = "px-3 py-1 font-fredoka text-xs rounded-xl bg-pink-500 text-white font-bold shadow";
+                g4.className = "px-3 py-1 font-fredoka text-xs rounded-xl bg-slate-200 text-slate-700 font-bold";
+            } else {
+                g4.className = "px-3 py-1 font-fredoka text-xs rounded-xl bg-pink-500 text-white font-bold shadow";
+                g3.className = "px-3 py-1 font-fredoka text-xs rounded-xl bg-slate-200 text-slate-700 font-bold";
+            }
+
+            initPuzzle();
+        }
+
+        function toggleNumbers() {
+            playSound('click');
+            showNumbers = !showNumbers;
+            const btn = document.getElementById('toggle-num-btn');
+            btn.innerHTML = `<i class="fa-solid fa-hashtag"></i> Nomor: ${showNumbers ? 'ON' : 'OFF'}`;
+            renderBoard();
+        }
+
+        function initPuzzle() {
+            document.getElementById('preview-img-full').src = currentPainting.url;
+            const total = gridSize * gridSize;
+            pieces = Array.from({ length: total }, (_, i) => i);
+            
+            shuffleArray(pieces);
+
+            moves = 0;
+            document.getElementById('moves-val').innerText = '0';
+            selectedIndex = null;
+
+            startTimer();
+            renderBoard();
+        }
+
+        function renderBoard() {
+            const board = document.getElementById('puzzle-board');
+            board.style.gridTemplateColumns = `repeat(${gridSize}, minmax(0, 1fr))`;
+            board.innerHTML = '';
+
+            pieces.forEach((pieceIndex, currentSlot) => {
+                const tile = document.createElement('div');
+                tile.className = `puzzle-piece relative w-full h-full bg-cover bg-no-repeat ${selectedIndex === currentSlot ? 'selected' : ''}`;
+                
+                // Calculate position percentage for background
+                const row = Math.floor(pieceIndex / gridSize);
+                const col = pieceIndex % gridSize;
+                
+                const posX = (col / (gridSize - 1)) * 100;
+                const posY = (row / (gridSize - 1)) * 100;
+
+                tile.style.backgroundImage = `url('${currentPainting.url}')`;
+                tile.style.backgroundSize = `${gridSize * 100}% ${gridSize * 100}%`;
+                tile.style.backgroundPosition = `${posX}% ${posY}%`;
+
+                // Display Number Overlay
+                if (showNumbers) {
+                    const numBadge = document.createElement('span');
+                    numBadge.className = 'absolute top-1 left-1 bg-black/60 text-yellow-300 text-[10px] md:text-xs font-fredoka px-1.5 py-0.5 rounded-md pointer-events-none border border-yellow-300/40';
+                    numBadge.innerText = pieceIndex + 1;
+                    tile.appendChild(numBadge);
+                }
+
+                tile.onclick = () => handleTileClick(currentSlot);
+                board.appendChild(tile);
+            });
+        }
+
+        function handleTileClick(slotIndex) {
+            if (selectedIndex === null) {
+                playSound('click');
+                selectedIndex = slotIndex;
+            } else if (selectedIndex === slotIndex) {
+                selectedIndex = null; // Deselect
+            } else {
+                // Swap pieces
+                playSound('swap');
+                const temp = pieces[selectedIndex];
+                pieces[selectedIndex] = pieces[slotIndex];
+                pieces[slotIndex] = temp;
+
+                selectedIndex = null;
+                moves++;
+                document.getElementById('moves-val').innerText = moves;
+
+                checkWin();
+            }
+            renderBoard();
+        }
+
+        function checkWin() {
+            const isSolved = pieces.every((val, idx) => val === idx);
+            if (isSolved) {
+                clearInterval(timerInterval);
+                playSound('win');
+
+                confetti({
+                    particleCount: 180,
+                    spread: 90,
+                    origin: { y: 0.6 }
+                });
+
+                document.getElementById('info-title').innerText = currentPainting.title;
+                document.getElementById('info-description').innerText = currentPainting.info;
+                document.getElementById('final-moves').innerText = moves;
+                document.getElementById('final-time').innerText = document.getElementById('timer-val').innerText;
+
+                document.getElementById('art-info-modal').classList.remove('hidden');
+            }
+        }
+
+        function shufflePuzzle() {
+            playSound('click');
+            shuffleArray(pieces);
+            moves = 0;
+            document.getElementById('moves-val').innerText = '0';
+            selectedIndex = null;
+            startTimer();
+            renderBoard();
+            showToast('Puzzle diacak ulang!', '🔄');
+        }
+
+        function autoSolveHint() {
+            playSound('click');
+            // Place at least one wrong piece in its correct position
+            for (let i = 0; i < pieces.length; i++) {
+                if (pieces[i] !== i) {
+                    const correctVal = i;
+                    const targetCurrentSlot = pieces.indexOf(correctVal);
+                    
+                    // Swap
+                    const temp = pieces[i];
+                    pieces[i] = pieces[targetCurrentSlot];
+                    pieces[targetCurrentSlot] = temp;
+                    
+                    moves++;
+                    document.getElementById('moves-val').innerText = moves;
+                    showToast('1 kepingan dibantu ke posisi tepat!', '✨');
+                    break;
+                }
+            }
+            renderBoard();
+            checkWin();
+        }
+
+        function togglePreviewModal() {
+            playSound('click');
+            const modal = document.getElementById('preview-modal');
+            modal.classList.toggle('hidden');
+        }
+
+        function closeArtInfoModal() {
+            document.getElementById('art-info-modal').classList.add('hidden');
+        }
+
+        function shuffleArray(arr) {
+            for (let i = arr.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [arr[i], arr[j]] = [arr[j], arr[i]];
+            }
+        }
+
+        function startTimer() {
+            clearInterval(timerInterval);
+            secondsElapsed = 0;
+            timerInterval = setInterval(() => {
+                secondsElapsed++;
+                const mins = Math.floor(secondsElapsed / 60).toString().padStart(2, '0');
+                const secs = (secondsElapsed % 60).toString().padStart(2, '0');
+                document.getElementById('timer-val').innerText = `${mins}:${secs}`;
+            }, 1000);
+        }
+
+        function showToast(msg, icon = 'ℹ️') {
+            const toast = document.getElementById('toast-msg');
+            document.getElementById('toast-text').innerText = msg;
+            document.getElementById('toast-icon').innerText = icon;
+
+            toast.classList.remove('opacity-0', 'pointer-events-none');
+            toast.classList.add('opacity-100');
+
+            setTimeout(() => {
+                toast.classList.remove('opacity-100');
+                toast.classList.add('opacity-0', 'pointer-events-none');
+            }, 3000);
+        }
+    </script>
+</body>
+</html>
